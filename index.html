@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bingo Humano</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Inter:wght@300;400;500;600&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0C0E14;
+    --surface: #14171F;
+    --card: #1C2030;
+    --border: #272B3F;
+    --accent: #FF4D6D;
+    --accent2: #FFD166;
+    --accent3: #06D6A0;
+    --blue: #4361EE;
+    --text: #F0F2FF;
+    --muted: #6B7296;
+  }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── HOME ── */
+  #screen-home {
+    align-items: center; justify-content: center; text-align: center; padding: 40px 24px;
+    background: radial-gradient(ellipse 90% 60% at 50% -10%, #2a1040 0%, var(--bg) 65%);
+  }
+  .home-emoji { font-size: 72px; margin-bottom: 20px; animation: bounce 1.8s infinite; }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+  .home-title { font-family: 'Syne', sans-serif; font-size: clamp(48px, 10vw, 88px); font-weight: 800; line-height: .95; letter-spacing: -3px; margin-bottom: 16px; }
+  .home-title .h1 { color: var(--accent2); }
+  .home-title .h2 { color: var(--text); }
+  .home-title .h3 { color: var(--accent); }
+  .home-sub { font-size: 15px; color: var(--muted); max-width: 380px; line-height: 1.65; margin: 0 auto 32px; }
+  .btn-start { background: var(--accent); color: #fff; border: none; border-radius: 16px; padding: 18px 48px; font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; cursor: pointer; transition: transform .15s, box-shadow .15s; box-shadow: 0 0 50px rgba(255,77,109,.4); letter-spacing: .5px; }
+  .btn-start:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 0 80px rgba(255,77,109,.55); }
+  .pills { margin-top: 36px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .pill { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 100px; padding: 6px 14px; }
+
+  /* ── GAME HEADER ── */
+  .g-header { padding: 14px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 20; }
+  .g-logo { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; }
+  .g-logo span { color: var(--accent); }
+  .score-wrap { display: flex; align-items: center; gap: 10px; }
+  .score-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 6px 14px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; }
+  .score-box .val { color: var(--accent2); font-size: 18px; }
+
+  /* ── TIMER BAR ── */
+  .timer-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 14px; }
+  .timer-num { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; min-width: 64px; }
+  .timer-num.warn { color: var(--accent2); }
+  .timer-num.danger { color: var(--accent); }
+  .timer-track { flex: 1; height: 6px; background: var(--border); border-radius: 100px; overflow: hidden; }
+  .timer-fill { height: 100%; background: linear-gradient(90deg, var(--accent3), var(--blue)); border-radius: 100px; transition: width .9s linear; }
+  .btn-t { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .btn-t:hover { background: var(--border); }
+
+  /* ── BINGO GRID ── */
+  .grid-wrap { padding: 16px 16px 8px; }
+  .grid-label { font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; text-align: center; }
+  .bingo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .bingo-cell {
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 10px 8px; text-align: center; cursor: pointer;
+    transition: transform .15s, border-color .2s, background .2s;
+    min-height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    position: relative; user-select: none;
+  }
+  .bingo-cell:hover:not(.marked) { border-color: var(--blue); transform: scale(1.03); }
+  .bingo-cell.marked { background: linear-gradient(135deg, #1a3a2a, #0f2a1f); border-color: var(--accent3); }
+  .bingo-cell.marked .cell-icon { filter: none; }
+  .bingo-cell.bingo-line { animation: pulse-green .6s ease; }
+  @keyframes pulse-green { 0%{box-shadow:0 0 0 0 rgba(6,214,160,.5)} 70%{box-shadow:0 0 0 12px rgba(6,214,160,0)} 100%{box-shadow:none} }
+  .cell-icon { font-size: 22px; line-height: 1; }
+  .cell-text { font-size: 10px; line-height: 1.35; color: var(--text); font-weight: 500; }
+  .cell-sig { font-size: 9px; color: var(--accent3); font-weight: 700; margin-top: 2px; display: none; }
+  .bingo-cell.marked .cell-sig { display: block; }
+  .check-mark { position: absolute; top: 6px; right: 8px; font-size: 12px; opacity: 0; transition: opacity .2s; }
+  .bingo-cell.marked .check-mark { opacity: 1; }
+
+  /* ── BINGO LINES ── */
+  .lines-info { padding: 8px 16px 0; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .line-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 100px; background: var(--card); border: 1px solid var(--border); color: var(--muted); }
+  .line-badge.done { background: rgba(6,214,160,.12); border-color: var(--accent3); color: var(--accent3); }
+
+  /* ── SIGN MODAL ── */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 50; align-items: center; justify-content: center; padding: 24px; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 32px 28px; width: 100%; max-width: 400px; }
+  .modal-icon { font-size: 40px; text-align: center; margin-bottom: 12px; }
+  .modal-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; text-align: center; margin-bottom: 6px; }
+  .modal-sub { font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 24px; line-height: 1.5; }
+  .modal-input { width: 100%; background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 14px 16px; font-size: 16px; color: var(--text); font-family: 'Inter', sans-serif; outline: none; transition: border-color .2s; }
+  .modal-input:focus { border-color: var(--accent3); }
+  .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+  .btn-cancel { flex: 1; background: var(--surface); border: 1px solid var(--border); color: var(--muted); border-radius: 12px; padding: 14px; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-confirm { flex: 2; background: var(--accent3); border: none; color: #0C0E14; border-radius: 12px; padding: 14px; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: transform .1s; }
+  .btn-confirm:hover { transform: scale(1.02); }
+
+  /* ── BINGO CELEBRATION ── */
+  .bingo-toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: var(--accent2); color: #0C0E14; font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; border-radius: 16px; padding: 16px 32px; z-index: 100; opacity: 0; transition: all .3s; pointer-events: none; white-space: nowrap; }
+  .bingo-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+
+
+  /* ── END SCREEN ── */
+  #screen-end { align-items: center; justify-content: center; text-align: center; padding: 48px 24px; background: radial-gradient(ellipse 70% 50% at 50% 100%, #0d2d1a 0%, var(--bg) 60%); }
+  .end-emoji { font-size: 80px; margin-bottom: 20px; }
+  .end-title { font-family: 'Syne', sans-serif; font-size: 38px; font-weight: 800; margin-bottom: 12px; }
+  .end-score { font-family: 'Syne', sans-serif; font-size: 64px; font-weight: 800; color: var(--accent2); margin-bottom: 8px; }
+  .end-sub { font-size: 14px; color: var(--muted); max-width: 340px; line-height: 1.6; margin-bottom: 36px; }
+  .end-actions { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
+  .btn-end { border-radius: 14px; padding: 16px; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; cursor: pointer; border: none; transition: transform .15s; }
+  .btn-end:hover { transform: translateY(-2px); }
+  .btn-restart { background: var(--accent); color: #fff; }
+  .btn-share { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+
+  /* ── INSTRUÇÕES ── */
+  .instructions { display: flex; flex-direction: column; gap: 10px; max-width: 360px; width: 100%; margin: 0 auto 32px; text-align: left; }
+  .instr-item { display: flex; align-items: flex-start; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; font-size: 14px; color: var(--text); line-height: 1.5; }
+  .instr-item strong { color: var(--accent2); }
+  .instr-highlight { background: rgba(255,209,102,.07); border-color: rgba(255,209,102,.3); }
+  .instr-n { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--accent2); min-width: 24px; margin-top: 1px; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
+  html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="screen-home" class="screen active">
+  <div class="home-emoji">🎉</div>
+  <h1 class="home-title">
+    <div class="h1">BINGO</div>
+    <div class="h2">HUMANO</div>
+  </h1>
+  <div class="instructions">
+    <div class="instr-item"><span class="instr-n">1</span><span>Circule pelo grupo e encontre alguém que se encaixa em cada quadrado</span></div>
+    <div class="instr-item"><span class="instr-n">2</span><span>Toque no quadrado e preencha o nome da pessoa que você encontrou — <strong>cada pessoa só pode aparecer uma vez!</strong></span></div>
+    <div class="instr-item"><span class="instr-n">3</span><span>Complete uma linha na horizontal, vertical ou diagonal</span></div>
+    <div class="instr-item instr-highlight"><span class="instr-n">🏆</span><span>Completou uma linha? Grite <strong>BINGO!</strong> bem alto para todo mundo ouvir!</span></div>
+  </div>
+  <button class="btn-start" onclick="startGame()">Jogar agora →</button>
+  <div class="pills">
+    <div class="pill">⏱ 20 min</div>
+    <div class="pill">👥 23 pessoas</div>
+    <div class="pill">🚶 Circule e converse</div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <div class="g-header">
+    <div class="g-logo">BINGO <span>HUMANO</span></div>
+    <div class="score-wrap">
+      <div class="score-box">✅ <span class="val" id="score-val">0</span>/16</div>
+      <div class="score-box">🏆 <span class="val" id="bingo-val">0</span> BINGO</div>
+    </div>
+  </div>
+
+  <div class="timer-bar">
+    <div class="timer-num" id="timer-num">20:00</div>
+    <div class="timer-track"><div class="timer-fill" id="timer-fill" style="width:100%"></div></div>
+    <button class="btn-t" id="btn-timer" onclick="toggleTimer()">▶ Iniciar</button>
+    <button class="btn-t" onclick="resetTimer()">↺</button>
+  </div>
+
+  <div class="grid-wrap">
+    <div class="grid-label">Encontre alguém que…</div>
+    <div class="bingo-grid" id="bingo-grid"></div>
+  </div>
+
+  <div class="lines-info" id="lines-info"></div>
+
+  <div style="height:32px"></div>
+</div>
+
+<!-- SIGN MODAL -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="modal-icon" id="modal-icon"></div>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <input class="modal-input" id="modal-input" type="text" placeholder="Digite o nome da pessoa..." maxlength="24" />
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-confirm" onclick="confirmSign()">✅ Confirmar!</button>
+    </div>
+  </div>
+</div>
+
+<!-- BINGO TOAST -->
+<div class="bingo-toast" id="bingo-toast">🎉 BINGO!</div>
+
+<!-- END -->
+<div id="screen-end" class="screen">
+  <div class="end-emoji">🏆</div>
+  <div class="end-title">Tempo esgotado!</div>
+  <div class="end-score" id="end-score">0</div>
+  <div class="end-sub" id="end-sub">quadrados preenchidos. Agora compartilhe o fato mais inusitado que descobriu!</div>
+  <div class="end-actions">
+    <button class="btn-end btn-restart" onclick="restartGame()">↩ Jogar de novo</button>
+  </div>
+</div>
+
+<script>
+const cells = [
+  { icon: "✈️", text: "Já morou em outro estado ou país" },
+  { icon: "🎸", text: "Toca algum instrumento musical" },
+  { icon: "🌅", text: "Acorda antes das 6h da manhã" },
+  { icon: "🍕", text: "Já trabalhou com atendimento ao público" },
+  { icon: "📚", text: "Leu mais de 5 livros este ano" },
+  { icon: "🐶", text: "Tem (ou teve) mais de um pet" },
+  { icon: "🎭", text: "Já se apresentou em público — palco, teatro ou show" },
+  { icon: "🌍", text: "Fala mais de um idioma" },
+  { icon: "🏃", text: "Já correu mais de 10km de uma vez" },
+  { icon: "🍳", text: "Sabe cozinhar um prato especial de verdade" },
+  { icon: "🎮", text: "Jogou videogame até de madrugada" },
+  { icon: "📷", text: "Tem mais de 1.000 fotos no celular agora" },
+  { icon: "🚗", text: "Nunca tirou a carteira de motorista" },
+  { icon: "🌙", text: "É completamente noturno — dorme depois da meia-noite" },
+  { icon: "🏆", text: "Ganhou algum prêmio ou competição na vida" },
+  { icon: "🤙", text: "Conhece alguém famoso pessoalmente" },
+];
+
+// linhas/colunas/diagonais do grid 4x4
+const LINES = [
+  [0,1,2,3],[4,5,6,7],[8,9,10,11],[12,13,14,15],   // rows
+  [0,4,8,12],[1,5,9,13],[2,6,10,14],[3,7,11,15],   // cols
+  [0,5,10,15],[3,6,9,12]                             // diags
+];
+
+let signed = Array(16).fill(null); // null or name string
+let bingoLines = new Set();
+let timerSecs = 20 * 60;
+let timerRunning = false;
+let timerInterval = null;
+let selectedCell = null;
+
+function startGame() {
+  document.getElementById('screen-home').classList.remove('active');
+  document.getElementById('screen-game').classList.add('active');
+  buildGrid();
+  buildLinesInfo();
+}
+
+function buildGrid() {
+  const grid = document.getElementById('bingo-grid');
+  grid.innerHTML = cells.map((c, i) => `
+    <div class="bingo-cell" id="cell-${i}" onclick="openModal(${i})">
+      <span class="check-mark">✅</span>
+      <div class="cell-icon">${c.icon}</div>
+      <div class="cell-text">${c.text}</div>
+      <div class="cell-sig" id="sig-${i}"></div>
+    </div>
+  `).join('');
+}
+
+function buildLinesInfo() {
+  const wrap = document.getElementById('lines-info');
+  const names = ['Linha 1','Linha 2','Linha 3','Linha 4','Col 1','Col 2','Col 3','Col 4','Diag ↘','Diag ↙'];
+  wrap.innerHTML = names.map((n,i) => `<div class="line-badge" id="lb-${i}">${n}</div>`).join('');
+}
+
+function openModal(idx) {
+  if (signed[idx]) return; // already signed
+  selectedCell = idx;
+  const c = cells[idx];
+  document.getElementById('modal-icon').textContent = c.icon;
+  document.getElementById('modal-title').textContent = 'Encontrou alguém?';
+  document.getElementById('modal-sub').textContent = c.text + ' — preencha o nome da pessoa que você encontrou!';
+  document.getElementById('modal-input').value = '';
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('modal-input').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  selectedCell = null;
+}
+
+function confirmSign() {
+  const name = document.getElementById('modal-input').value.trim();
+  if (!name) { document.getElementById('modal-input').focus(); return; }
+
+  // Verifica nome duplicado (case-insensitive)
+  const alreadyUsed = signed.some(n => n && n.toLowerCase() === name.toLowerCase());
+  if (alreadyUsed) {
+    const input = document.getElementById('modal-input');
+    const sub = document.getElementById('modal-sub');
+    input.style.borderColor = 'var(--accent)';
+    input.style.animation = 'shake .3s ease';
+    sub.textContent = '⚠️ Esse nome já foi usado! Cada pessoa só pode assinar uma vez.';
+    sub.style.color = 'var(--accent)';
+    setTimeout(() => {
+      input.style.borderColor = '';
+      input.style.animation = '';
+    }, 600);
+    input.select();
+    return;
+  }
+
+  signed[selectedCell] = name;
+  const cell = document.getElementById(`cell-${selectedCell}`);
+  cell.classList.add('marked');
+  document.getElementById(`sig-${selectedCell}`).textContent = name;
+  closeModal();
+  updateScore();
+  checkBingo();
+}
+
+// Enter key on modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('modal').classList.contains('open')) confirmSign();
+  if (e.key === 'Escape') closeModal();
+});
+
+function updateScore() {
+  const count = signed.filter(Boolean).length;
+  document.getElementById('score-val').textContent = count;
+}
+
+function checkBingo() {
+  LINES.forEach((line, li) => {
+    if (bingoLines.has(li)) return;
+    if (line.every(i => signed[i])) {
+      bingoLines.add(li);
+      line.forEach(i => document.getElementById(`cell-${i}`).classList.add('bingo-line'));
+      document.getElementById(`lb-${li}`).classList.add('done');
+      document.getElementById('bingo-val').textContent = bingoLines.size;
+      showToast();
+    }
+  });
+}
+
+function showToast() {
+  const t = document.getElementById('bingo-toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// TIMER
+function toggleTimer() {
+  if (timerRunning) {
+    clearInterval(timerInterval);
+    timerRunning = false;
+    document.getElementById('btn-timer').textContent = '▶ Retomar';
+  } else {
+    timerRunning = true;
+    document.getElementById('btn-timer').textContent = '⏸ Pausar';
+    timerInterval = setInterval(() => {
+      timerSecs--;
+      updateTimerUI();
+      if (timerSecs <= 0) {
+        clearInterval(timerInterval);
+        timerRunning = false;
+        endGame();
+      }
+    }, 1000);
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerSecs = 20 * 60;
+  updateTimerUI();
+  document.getElementById('btn-timer').textContent = '▶ Iniciar';
+}
+
+function updateTimerUI() {
+  const m = Math.floor(timerSecs / 60);
+  const s = timerSecs % 60;
+  const el = document.getElementById('timer-num');
+  el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  el.className = 'timer-num' + (timerSecs <= 60 ? ' danger' : timerSecs <= 180 ? ' warn' : '');
+  const pct = (timerSecs / (20*60)) * 100;
+  document.getElementById('timer-fill').style.width = pct + '%';
+}
+
+function endGame() {
+  const count = signed.filter(Boolean).length;
+  document.getElementById('end-score').textContent = count;
+  document.getElementById('end-sub').textContent = `quadrado${count !== 1 ? 's' : ''} preenchido${count !== 1 ? 's' : ''} — e ${bingoLines.size} BINGO${bingoLines.size !== 1 ? 'S' : ''}! Agora compartilhe o fato mais inusitado que descobriu sobre alguém.`;
+  document.getElementById('screen-game').classList.remove('active');
+  document.getElementById('screen-end').classList.add('active');
+}
+
+function restartGame() {
+  signed = Array(16).fill(null);
+  bingoLines = new Set();
+  timerSecs = 20 * 60;
+  timerRunning = false;
+  clearInterval(timerInterval);
+  document.getElementById('screen-end').classList.remove('active');
+  document.getElementById('screen-game').classList.add('active');
+  buildGrid();
+  buildLinesInfo();
+  updateScore();
+  document.getElementById('bingo-val').textContent = '0';
+  updateTimerUI();
+  document.getElementById('btn-timer').textContent = '▶ Iniciar';
+}
+
+
+</script>
+</body>
+</html>
